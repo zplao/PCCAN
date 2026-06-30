@@ -1,6 +1,6 @@
-# PCCAN: Physics-Constrained Counterfactual Causal-Aware Network
+# PCCAN
 
-This repository contains the implementation of a physics-guided counterfactual zero-shot compound-fault diagnosis pipeline under variable-speed conditions. The code includes two experimental branches:
+This repository contains the implementation of a physics-guided counterfactual zero-shot compound-fault diagnosis pipeline under time-varying speed conditions. The code includes two experimental branches:
 
 - **TTMB/GXU bearing branch**: inner-race fault, outer-race fault, rolling-element fault, and their compound modes.
 - **BGMF/MFD bearing-gear branch**: bearing faults plus gear broken-tooth fault and bearing-gear compound modes.
@@ -10,7 +10,7 @@ The full workflow is:
 ```text
 raw variable-speed vibration .mat files
         ↓
-physics-guided local harmonic-atom order-domain decoupling
+physics-guided compound fault feature decoupling
         ↓
 component/order-spectrum cache: components.npz
         ↓
@@ -28,15 +28,11 @@ PCCAN/
 ├── environment.yml
 ├── common.py / common_bg.py
 ├── ordered_gat_utils.py
-├── multicomponent_decouple_TTMB.py      # TTMB/GXU front-end: raw .mat -> order-domain component cache
 ├── train_zs_TTMB.py                     # TTMB/GXU counterfactual GNN backend training
 ├── infer_TTMB.py                        # TTMB/GXU inference, metrics, visualization
-├── train_end2end_TTMB.py                # TTMB/GXU one-command front-end + backend runner
 ├── dataset_gnn.py / models_gnn.py / backend_utils_gnn.py
-├── multicomponent_decouple_BGMF.py      # BGMF/MFD front-end with bearing + gear prior
 ├── train_zs_BGMF.py                     # BGMF/MFD counterfactual GNN backend training
 ├── infer_BGMF.py                        # BGMF/MFD inference, metrics, visualization
-├── train_end2end_BGMF.py                # BGMF/MFD one-command front-end + backend runner
 ├── dataset_gnn_bg.py / models_gnn_bg.py / backend_utils_gnn_bg.py
 ├── data_TTMB/                           # put TTMB/GXU .mat files here; ignored by Git
 ├── data_BGMF/                           # put BGMF/MFD .mat files here; ignored by Git
@@ -159,10 +155,10 @@ The backend supports two evaluation protocols:
 
 ## 5. Quick start
 
-### 5.1 TTMB/GXU end-to-end training
+### 5.1 TTMB training
 
 ```bash
-python train_end2end_TTMB.py \
+python train_zs_TTMB.py \
   --data_dir ./data_TTMB \
   --data_key data1 \
   --speed_key speed1 \
@@ -175,30 +171,10 @@ python train_end2end_TTMB.py \
 For generalized zero-shot evaluation:
 
 ```bash
-python train_end2end_TTMB.py --data_dir ./data_TTMB --task B --epochs 100 --seed 42
+python train_zs_TTMB.py --data_dir ./data_TTMB --task B --epochs 100 --seed 42
 ```
 
-### 5.2 TTMB/GXU separate front-end and backend
-
-```bash
-python multicomponent_decouple_TTMB.py \
-  --data_dir ./data_TTMB \
-  --data_key data1 \
-  --speed_key speed1 \
-  --fs 20000 \
-  --cache_extraction_mode all \
-  --activation_mode weaklabel \
-  --out_dir ./multicomponent_results_TTMB
-
-python train_zs_TTMB.py \
-  --cache_root ./multicomponent_results_TTMB \
-  --out_dir ./zs_outputs_TTMB \
-  --task A \
-  --epochs 100 \
-  --seed 42
-```
-
-### 5.3 TTMB/GXU inference
+### 5.2 TTMB inference
 
 ```bash
 python infer_TTMB.py \
@@ -218,10 +194,10 @@ python infer_TTMB.py \
   --eval_mode taskB_all
 ```
 
-### 5.4 BGMF/MFD end-to-end training
+### 5.3 BGMF training
 
 ```bash
-python train_end2end_BGMF.py \
+python train_zs_BGMF.py \
   --data_dir ./data_BGMF \
   --data_key data \
   --speed_key speed \
@@ -234,30 +210,10 @@ python train_end2end_BGMF.py \
 For Task B:
 
 ```bash
-python train_end2end_BGMF.py --data_dir ./data_BGMF --task B --epochs 100 --seed 42
+python train_zs_BGMF.py --data_dir ./data_BGMF --task B --epochs 100 --seed 42
 ```
 
-### 5.5 BGMF/MFD separate front-end and backend
-
-```bash
-python multicomponent_decouple_BGMF.py \
-  --data_dir ./data_BGMF \
-  --data_key data \
-  --speed_key speed \
-  --fs 16000 \
-  --cache_extraction_mode all \
-  --activation_mode weaklabel \
-  --out_dir ./multicomponent_results_BGMF
-
-python train_zs_BGMF.py \
-  --cache_root ./multicomponent_results_BGMF \
-  --out_dir ./zs_outputs_BGMF \
-  --task A \
-  --epochs 100 \
-  --seed 42
-```
-
-### 5.6 BGMF/MFD inference
+### 5.4 BGMF inference
 
 ```bash
 python infer_BGMF.py \
@@ -279,16 +235,7 @@ python infer_BGMF.py \
 
 ## 6. Main outputs
 
-### Front-end outputs
-
-`multicomponent_results_TTMB/` or `multicomponent_results_BGMF/` contains:
-
-- `summary.csv` or `summary_bg.csv`: component extraction summary.
-- `<sample>/<window>/components.npz`: order-domain component cache.
-- diagnostic plots for front-end component decomposition.
-- `bg_meta.json` for BGMF/MFD branch, containing bearing and gear prior information.
-
-### Backend training outputs
+### training outputs
 
 `zs_outputs_TTMB/` or `zs_outputs_BGMF/` contains:
 
@@ -307,36 +254,6 @@ python infer_BGMF.py \
 - `counterfactual_intervention_by_label/`: counterfactual intervention visualization results.
 - `repeated_seed_metrics.csv`: generated when multi-seed inference is enabled.
 
-## 7. Important implementation notes
-
-1. The reference implementation is based on Python 3.12 and PyTorch 2.4.0. Version mismatches, especially between PyTorch and PyTorch Geometric, may cause import or CUDA extension errors.
-2. `--cache_extraction_mode all` is recommended. It extracts all candidate fault components for every window and avoids using the true compound label to select active components.
-3. File-name weak labels are used as supervision and evaluation metadata. They should not be used to filter the candidate components in the zero-shot testing cache.
-4. The ordered graph is sorted by ascending theoretical order. The same node order is used by the pooling layer, adjacency, readout mask, and graph visualization metadata.
-5. BGMF/MFD requires `bg_meta.json`, which is automatically generated by `multicomponent_decouple_BGMF.py` and used by the BGMF backend.
-6. If you change bearing geometry, gear teeth, sampling frequency, segment length, or maximum order, keep the front-end, backend, and inference arguments consistent.
-
-## 8. Reproducibility
-
-Set the random seed explicitly:
-
-```bash
---seed 42
-```
-
-Common seeds used in repeated experiments are:
-
-```text
-42, 2021, 2022, 2023, 2024, 2025, 2026
-```
-
-For repeated inference splits:
-
-```bash
-python infer_TTMB.py --num_seed_runs 6 --seed_list 2021,2022,2023,2024,2025,2026
-python infer_BGMF.py --num_seed_runs 6 --seed_list 2021,2022,2023,2024,2025,2026
-```
-
-## 9. Citation
+## 7. Citation
 
 If this code is used in a paper, please cite the corresponding manuscript. Add the final BibTeX entry here after publication.
